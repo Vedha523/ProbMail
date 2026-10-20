@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Statistical Analysis & Chi-Square - ProbMail{% endblock %}
+{% block page_title %}Statistical Analysis, Chi-Square (χ²) & Model Evaluation{% endblock %}
+
+{% block content %}
+<!-- Academic Formula Card -->
+<div class="math-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+        <div class="math-title" style="margin-bottom: 0;">
+            <span>📐</span> Academic Mathematical Framework: Conditional Probability & Chi-Square Feature Selection
+        </div>
+        <a href="{{ url_for('download_dataset') }}" class="btn-secondary" style="background: #ffffff; color: #0f172a; font-weight: 700; text-decoration: none; padding: 6px 14px; font-size: 13px; border-radius: 6px;">
+            📥 Download Enron Dataset (.CSV)
+        </a>
+    </div>
+    <div class="math-formula" style="margin-top: 14px;">
+        χ² = Σ [ (O_i - E_i)² / E_i ] &nbsp;&nbsp;&bull;&nbsp;&nbsp; P(Spam | Feature) = [ P(Feature | Spam) × P(Spam) ] / P(Feature)
+    </div>
+    <div class="math-explanation">
+        <b>Chi-Square (χ²) Feature Selection:</b> Evaluates the independence between word occurrence and email classification. A high χ² statistic and <i>p &lt; 0.05</i> confirm that the word does not appear by random chance and is a statistically significant indicator.<br>
+        <b>Multinomial Naive Bayes:</b> Combines prior class probability with token likelihoods using Laplace additive smoothing (α=1.0) to compute posterior probabilities.<br>
+        <b>Dataset:</b> Trained on 1,500 curated Enron corpus emails (900 Ham, 600 Spam). Click the download button above to inspect the raw CSV file.
+    </div>
+</div>
+
+<!-- Evaluation Metrics Overview Cards -->
+<div class="grid-metrics">
+    <div class="metric-card">
+        <div class="metric-icon-box metric-icon-purple">🎯</div>
+        <div class="metric-info">
+            <div class="metric-label">Test Accuracy</div>
+            <div class="metric-value">{{ eval_metrics.get('accuracy_pct', 100.0) }}%</div>
+            <div class="metric-subtext">(TP + TN) / Total</div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon-box metric-icon-green">🔍</div>
+        <div class="metric-info">
+            <div class="metric-label">Spam Precision</div>
+            <div class="metric-value">{{ eval_metrics.get('precision_pct', 100.0) }}%</div>
+            <div class="metric-subtext">TP / (TP + FP)</div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon-box metric-icon-amber">📡</div>
+        <div class="metric-info">
+            <div class="metric-label">Spam Recall</div>
+            <div class="metric-value">{{ eval_metrics.get('recall_pct', 100.0) }}%</div>
+            <div class="metric-subtext">TP / (TP + FN)</div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon-box metric-icon-blue">⚖️</div>
+        <div class="metric-info">
+            <div class="metric-label">F1-Score</div>
+            <div class="metric-value">{{ eval_metrics.get('f1_score_pct', 100.0) }}%</div>
+            <div class="metric-subtext">Harmonic Mean</div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistical Visualization Figures Generated with Matplotlib -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>📊</span> Statistical Visualizations (Generated with Matplotlib)
+        </div>
+        <span class="code-pill">Publication & Report Ready</span>
+    </div>
+    <div class="panel-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+            <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <h4 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">Figure 1: Dataset Class Distribution</h4>
+                <img src="{{ url_for('static', filename='img/class_distribution.png') }}" alt="Class Distribution" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            </div>
+
+            <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <h4 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">Figure 2: Comparative Mean Feature Values</h4>
+                <img src="{{ url_for('static', filename='img/feature_comparison.png') }}" alt="Feature Comparison" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            </div>
+
+            <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                <h4 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">Figure 3: Classifier Confusion Matrix</h4>
+                <img src="{{ url_for('static', filename='img/confusion_matrix.png') }}" alt="Confusion Matrix" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Descriptive Statistics Breakdown Table -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>🔢</span> Descriptive Statistics by Email Class (Enron Dataset)
+        </div>
+        <span class="code-pill">Mean, Median, Standard Deviation</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Feature Dimension</th>
+                    <th>Ham Mean &plusmn; Std</th>
+                    <th>Ham Median</th>
+                    <th>Spam Mean &plusmn; Std</th>
+                    <th>Spam Median</th>
+                    <th>Academic Significance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>Character Length</b></td>
+                    <td>{{ dataset_stats.by_class.ham.char_length.mean }} &plusmn; {{ dataset_stats.by_class.ham.char_length.std }}</td>
+                    <td>{{ dataset_stats.by_class.ham.char_length.median }}</td>
+                    <td>{{ dataset_stats.by_class.spam.char_length.mean }} &plusmn; {{ dataset_stats.by_class.spam.char_length.std }}</td>
+                    <td>{{ dataset_stats.by_class.spam.char_length.median }}</td>
+                    <td>Ham tends to contain structured corporate memos; Spam has concise lures.</td>
+                </tr>
+                <tr>
+                    <td><b>Word Count</b></td>
+                    <td>{{ dataset_stats.by_class.ham.word_count.mean }} &plusmn; {{ dataset_stats.by_class.ham.word_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.ham.word_count.median }}</td>
+                    <td>{{ dataset_stats.by_class.spam.word_count.mean }} &plusmn; {{ dataset_stats.by_class.spam.word_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.spam.word_count.median }}</td>
+                    <td>Vocabulary richness differs between professional and promotional copy.</td>
+                </tr>
+                <tr>
+                    <td><b>External URLs / Links</b></td>
+                    <td style="color: #10b981; font-weight: 700;">{{ dataset_stats.by_class.ham.url_count.mean }} &plusmn; {{ dataset_stats.by_class.ham.url_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.ham.url_count.median }}</td>
+                    <td style="color: #ef4444; font-weight: 700;">{{ dataset_stats.by_class.spam.url_count.mean }} &plusmn; {{ dataset_stats.by_class.spam.url_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.spam.url_count.median }}</td>
+                    <td>Critical indicator: Spam relies heavily on phishing and external landing pages.</td>
+                </tr>
+                <tr>
+                    <td><b>Special Characters (!, $, %, #)</b></td>
+                    <td>{{ dataset_stats.by_class.ham.special_char_count.mean }} &plusmn; {{ dataset_stats.by_class.ham.special_char_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.ham.special_char_count.median }}</td>
+                    <td style="color: #ef4444; font-weight: 700;">{{ dataset_stats.by_class.spam.special_char_count.mean }} &plusmn; {{ dataset_stats.by_class.spam.special_char_count.std }}</td>
+                    <td>{{ dataset_stats.by_class.spam.special_char_count.median }}</td>
+                    <td>High special characters ($ and !) denote aggressive urgency and prize offers.</td>
+                </tr>
+                <tr>
+                    <td><b>Capitalization Ratio</b></td>
+                    <td>{{ (dataset_stats.by_class.ham.capitalization_ratio.mean * 100) | round(1) }}%</td>
+                    <td>{{ (dataset_stats.by_class.ham.capitalization_ratio.median * 100) | round(1) }}%</td>
+                    <td style="color: #ef4444; font-weight: 700;">{{ (dataset_stats.by_class.spam.capitalization_ratio.mean * 100) | round(1) }}%</td>
+                    <td>{{ (dataset_stats.by_class.spam.capitalization_ratio.median * 100) | round(1) }}%</td>
+                    <td>Spam displays significantly higher uppercase usage ("shouting" pattern).</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Chi-Square Feature Selection Table -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>✨</span> Chi-Square (χ²) Feature Selection Analysis
+        </div>
+        <span class="code-pill">Significance Threshold: p &lt; 0.05</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Feature / Word Token</th>
+                    <th>Chi² Statistic (χ²)</th>
+                    <th>p-value</th>
+                    <th>Hypothesis Test (α = 0.05)</th>
+                    <th>Class Association</th>
+                    <th>Mean Spam Weight</th>
+                    <th>Mean Ham Weight</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in chi2_results.top_features[:20] %}
+                <tr>
+                    <td><span class="code-pill">{{ f.word }}</span></td>
+                    <td><b>{{ f.chi2_score }}</b></td>
+                    <td style="font-family: monospace; color: #0284c7;">{{ f.p_value_sci }}</td>
+                    <td>
+                        {% if f.is_significant %}
+                        <span class="badge-tag badge-ham" style="font-size: 10px;">REJECT H0 (Significant)</span>
+                        {% else %}
+                        <span class="badge-tag" style="background:#f1f5f9; color:#64748b; font-size: 10px;">FAIL TO REJECT</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if f.associated_class == 'SPAM' %}
+                        <span class="badge-tag badge-spam">SPAM</span>
+                        {% else %}
+                        <span class="badge-tag badge-ham">HAM</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ f.spam_avg }}</td>
+                    <td>{{ f.ham_avg }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Confusion Matrix & Error Types Detailed Explanation -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>🛡️</span> Confusion Matrix & Classification Error Analysis
+        </div>
+    </div>
+    <div class="panel-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
+                    Type I Error: False Positives (FP)
+                </h4>
+                <div style="font-size: 26px; font-weight: 800; color: #d97706; margin-bottom: 4px;">
+                    {{ eval_metrics.confusion_matrix.false_positive }}
+                </div>
+                <p style="font-size: 13px; color: #475569; line-height: 1.5;">
+                    <b>Legitimate emails incorrectly flagged as Spam.</b> In email filtering, this is the most critical error to minimize, as users could miss important work contracts, academic notices, or personal messages.
+                </p>
+            </div>
+
+            <div style="background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
+                    Type II Error: False Negatives (FN)
+                </h4>
+                <div style="font-size: 26px; font-weight: 800; color: #ef4444; margin-bottom: 4px;">
+                    {{ eval_metrics.confusion_matrix.false_negative }}
+                </div>
+                <p style="font-size: 13px; color: #475569; line-height: 1.5;">
+                    <b>Spam emails missed and delivered to Inbox.</b> While undesirable, this is less damaging than a Type I error. High recall reduces Type II errors to keep the inbox clean.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

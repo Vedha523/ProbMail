@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox - Legitimate Emails{% endblock %}
+{% block page_title %}Inbox (Legitimate Ham Emails){% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>📥</span> Ham Mailbox &mdash; Verified Legitimate
+        </div>
+        <div style="font-size: 13px; color: #64748b;">
+            Total: <b>{{ emails|length }}</b> email(s)
+        </div>
+    </div>
+
+    <div class="panel-body" style="padding: 0;">
+        {% if emails %}
+        <table class="email-table">
+            <tbody>
+                {% for email in emails %}
+                <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}">
+                    <td class="email-badge-col">
+                        <span class="badge-tag badge-ham">HAM</span>
+                    </td>
+                    <td class="email-sender-col">
+                        <b>{{ email.sender_email }}</b>
+                    </td>
+                    <td class="email-subject-col">
+                        <span>{{ email.subject }}</span>
+                        <span class="email-snippet">- {{ email.body[:70] }}...</span>
+                    </td>
+                    <td class="email-prob-col">
+                        <div class="prob-text">
+                            <span style="color: #10b981;">{{ email.ham_probability }}% Ham</span>
+                        </div>
+                        <div class="prob-meter-container">
+                            <div class="prob-meter-fill" style="width: {{ email.ham_probability }}%; background-color: #10b981;"></div>
+                        </div>
+                    </td>
+                    <td class="email-date-col">
+                        {{ email.created_at[:10] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-title">Your Inbox is Empty</div>
+            <p>No legitimate emails found in this mailbox.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

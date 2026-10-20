@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ProbMail{% endblock %} - Spam Classification Engine</title>
+    <!-- Normal Vanilla CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js for Interactive Dashboard Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-badge">P(S)</div>
+                    <div>
+                        <div class="logo-title">ProbMail</div>
+                        <div class="logo-subtitle">Bayes Spam Engine</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="compose-cta">
+                <a href="{{ url_for('compose_email') }}" class="btn-compose">
+                    <span>✏️</span> Compose Email
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Mailboxes</div>
+                <a href="{{ url_for('inbox') }}" class="nav-item {% if active_page == 'inbox' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>📥</span> <span>Inbox</span>
+                    </div>
+                    {% if folder_counts and folder_counts.inbox_unread > 0 %}
+                    <span class="nav-badge badge-inbox">{{ folder_counts.inbox_unread }}</span>
+                    {% endif %}
+                </a>
+
+                <a href="{{ url_for('spam_folder') }}" class="nav-item {% if active_page == 'spam' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>🚨</span> <span>Spam Folder</span>
+                    </div>
+                    {% if folder_counts and folder_counts.spam_unread > 0 %}
+                    <span class="nav-badge badge-spam">{{ folder_counts.spam_unread }}</span>
+                    {% endif %}
+                </a>
+
+                <a href="{{ url_for('sent_folder') }}" class="nav-item {% if active_page == 'sent' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>📤</span> <span>Sent Messages</span>
+                    </div>
+                </a>
+
+                <div class="nav-section-title">Academic & Analytics</div>
+                <a href="{{ url_for('dashboard') }}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>📊</span> <span>Dashboard</span>
+                    </div>
+                </a>
+
+                <a href="{{ url_for('classification_history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>📜</span> <span>Classification Log</span>
+                    </div>
+                </a>
+
+                <a href="{{ url_for('statistics_page') }}" class="nav-item {% if active_page == 'statistics' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>📐</span> <span>Statistics & χ²</span>
+                    </div>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-brief">
+                    <div class="user-avatar">{{ (session.get('user_name', 'U'))[0] | upper }}</div>
+                    <div>
+                        <div class="user-name-small">{{ session.get('user_name', 'User') }}</div>
+                        <div class="user-email-small">{{ session.get('user_email', '') }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="btn-logout" title="Logout">🚪</a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-navbar">
+                <div class="top-navbar-left">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+
+                <div class="top-navbar-right">
+                    <div class="search-box-container">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="liveSearchInput" class="search-input" placeholder="Search emails by subject or body...">
+                    </div>
+                    <div class="academic-badge">
+                        <span>🔬</span> B.Tech CSE Project
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Flash Messages -->
+                <div class="flash-container">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="flash-message flash-{{ category }}">
+                                    <span>{{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                <!-- Page Block -->
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Vanilla JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

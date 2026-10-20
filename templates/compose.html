@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Compose Email - ProbMail{% endblock %}
+{% block page_title %}Compose & Classify Email{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Compose Form -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <span>✏️</span> New Message
+            </div>
+            <span class="code-pill">Real-time Bayesian Analysis</span>
+        </div>
+
+        <div class="panel-body">
+            <form action="{{ url_for('compose_email') }}" method="POST">
+                <div class="form-group">
+                    <label class="form-label" for="receiver_email">Recipient Email Address</label>
+                    <select name="receiver_email" id="receiver_email" class="form-select" required>
+                        <option value="">-- Select Recipient --</option>
+                        {% for u in users %}
+                        <option value="{{ u.email }}" {% if request.form.get('receiver_email') == u.email or (loop.first and u.id != session.user_id) %}selected{% endif %}>
+                            {{ u.name }} ({{ u.email }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="subject">Email Subject</label>
+                    <input type="text" id="subject" name="subject" class="form-input" required placeholder="Subject line..." value="{{ request.form.get('subject', '') }}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="body">Email Message Body</label>
+                    <textarea id="body" name="body" class="form-textarea" required placeholder="Write your email content here...">{{ request.form.get('body', '') }}</textarea>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <button type="submit" class="btn-primary">
+                        <span>🚀</span> Send & Classify Message
+                    </button>
+                    <button type="reset" class="btn-secondary">Clear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Viva Demonstration Quick Samples Box -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <span>🧪</span> Viva Demo Templates
+            </div>
+        </div>
+        <div class="panel-body">
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
+                Click any template below to automatically fill the form and demonstrate how the classifier evaluates different patterns:
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" class="btn-secondary" onclick="loadSample('ham1')" style="text-align: left; justify-content: flex-start;">
+                    <span>📄</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 13px; color: #10b981;">Enron Corporate Ham</div>
+                        <div style="font-size: 11px; color: #64748b;">Gas pipeline schedule & meetings</div>
+                    </div>
+                </button>
+
+                <button type="button" class="btn-secondary" onclick="loadSample('spam1')" style="text-align: left; justify-content: flex-start;">
+                    <span>🚨</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 13px; color: #ef4444;">Lottery Prize Scam</div>
+                        <div style="font-size: 11px; color: #64748b;">High URLs, cash keywords, capital letters</div>
+                    </div>
+                </button>
+
+                <button type="button" class="btn-secondary" onclick="loadSample('spam2')" style="text-align: left; justify-content: flex-start;">
+                    <span>🚨</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 13px; color: #ef4444;">Mortgage Refinance Spam</div>
+                        <div style="font-size: 11px; color: #64748b;">Interest rate, zero credit check</div>
+                    </div>
+                </button>
+            </div>
+
+            <div style="margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #64748b;">
+                <b>How it works:</b>
+                <ol style="margin-left: 18px; margin-top: 6px; line-height: 1.5;">
+                    <li>Text Preprocessing cleans Subject + Body.</li>
+                    <li>TF-IDF features are extracted.</li>
+                    <li>MultinomialNB evaluates likelihoods.</li>
+                    <li>Bayes' rule yields Spam & Ham probabilities.</li>
+                    <li>Routed automatically to Inbox or Spam!</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadSample(type) {
+    const subjInput = document.getElementById('subject');
+    const bodyInput = document.getElementById('body');
+
+    if (type === 'ham1') {
+        subjInput.value = "Schedule for Thursday strategy meeting regarding pipeline maintenance";
+        bodyInput.value = "Hi team,\n\nPlease find attached the agenda for our Thursday 2 PM conference call in Houston. We will review the Q3 volume projections and natural gas transport tariffs.\n\nBest regards,\nVince Kaminski\nEnron Energy Services";
+    } else if (type === 'spam1') {
+        subjInput.value = "URGENT WINNER: Claim your $2,500,000 cash lottery prize now!";
+        bodyInput.value = "CONGRATULATIONS! You have been randomly selected as our grand winner of $2,500,000 cash. To claim your prize immediately, click here http://claim-prize-cash.net/claim and submit your account info today. Free guaranteed payout with no risk! Call 1-800-555-4819 now!";
+    } else if (type === 'spam2') {
+        subjInput.value = "Refinance your mortgage at 1.99% guaranteed rate today!";
+        bodyInput.value = "Are you tired of paying high monthly interest? Refinance your home mortgage now! Rates as low as 1.99%. No credit check, no paperwork, fast online approval. Visit http://cheap-loans-direct.net/apply and save thousands today!";
+    }
+}
+</script>
+{% endblock %}

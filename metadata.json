@@ -1,0 +1,6 @@
+{
+  "name": "ProbMail - Spam Email Classifier",
+  "description": "Academic Spam Email Classification Engine Using Conditional Probability, Bayes' Theorem, Chi-square Feature Selection, and Naive Bayes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

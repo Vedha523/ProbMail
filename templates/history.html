@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Classification History - ProbMail{% endblock %}
+{% block page_title %}Classification Log & User Feedback Audits{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>📜</span> Full Email Classification History
+        </div>
+        <span class="code-pill">{{ emails|length }} Processed Email(s)</span>
+    </div>
+
+    <div class="panel-body" style="padding: 0;">
+        {% if emails %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date & Time</th>
+                    <th>Sender & Subject</th>
+                    <th>Prediction</th>
+                    <th>Spam Prob</th>
+                    <th>Ham Prob</th>
+                    <th>Current Mailbox</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for email in emails %}
+                <tr>
+                    <td><b>#{{ email.id }}</b></td>
+                    <td style="color: #64748b; font-size: 12px;">{{ email.created_at }}</td>
+                    <td>
+                        <div style="font-weight: 600; color: #0f172a;">{{ email.subject }}</div>
+                        <div style="font-size: 11px; color: #64748b;">From: {{ email.sender_email }}</div>
+                    </td>
+                    <td>
+                        {% if email.prediction == 'SPAM' %}
+                        <span class="badge-tag badge-spam">SPAM</span>
+                        {% else %}
+                        <span class="badge-tag badge-ham">HAM</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: #ef4444; font-weight: 700;">{{ email.spam_probability }}%</td>
+                    <td style="color: #10b981; font-weight: 700;">{{ email.ham_probability }}%</td>
+                    <td>
+                        <span class="code-pill">{{ email.folder | upper }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('view_email', email_id=email.id) }}" class="btn-secondary" style="padding: 4px 10px; font-size: 12px;">
+                            Inspect &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-title">No Classification Logs</div>
+            <p>Emails evaluated by the engine will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- User Feedback Audits Panel -->
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>⚖️</span> User Feedback & Correction Log
+        </div>
+        <span class="code-pill">{{ feedback_list|length }} Correction(s)</span>
+    </div>
+    <div class="panel-body" style="padding: 0;">
+        {% if feedback_list %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Log ID</th>
+                    <th>Email Subject</th>
+                    <th>User</th>
+                    <th>Original Model Verdict</th>
+                    <th>User Correction</th>
+                    <th>Logged At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in feedback_list %}
+                <tr>
+                    <td>#{{ f.id }}</td>
+                    <td><b>{{ f.subject }}</b></td>
+                    <td>{{ f.user_name }}</td>
+                    <td><span class="code-pill">{{ f.original_prediction }}</span></td>
+                    <td>
+                        {% if f.corrected_label == 'SPAM' %}
+                        <span class="badge-tag badge-spam">Corrected to SPAM</span>
+                        {% else %}
+                        <span class="badge-tag badge-ham">Corrected to HAM</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: #64748b; font-size: 12px;">{{ f.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <div class="empty-state-title">No Misclassifications Logged</div>
+            <p>Users have not submitted any corrections yet. All classifications match current mailbox routing.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

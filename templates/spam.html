@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Spam Folder - Isolated Emails{% endblock %}
+{% block page_title %}Spam Folder (Isolated Threats){% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <span>🚨</span> Automatically Isolated by Conditional Probability Engine
+        </div>
+        <div style="font-size: 13px; color: #ef4444; font-weight: 600;">
+            Total: <b>{{ emails|length }}</b> spam email(s) caught
+        </div>
+    </div>
+
+    <div class="panel-body" style="padding: 0;">
+        {% if emails %}
+        <table class="email-table">
+            <tbody>
+                {% for email in emails %}
+                <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}">
+                    <td class="email-badge-col">
+                        <span class="badge-tag badge-spam">SPAM</span>
+                    </td>
+                    <td class="email-sender-col">
+                        <b>{{ email.sender_email }}</b>
+                    </td>
+                    <td class="email-subject-col">
+                        <span>{{ email.subject }}</span>
+                        <span class="email-snippet">- {{ email.body[:70] }}...</span>
+                    </td>
+                    <td class="email-prob-col">
+                        <div class="prob-text">
+                            <span style="color: #ef4444;">{{ email.spam_probability }}% Spam</span>
+                        </div>
+                        <div class="prob-meter-container">
+                            <div class="prob-meter-fill" style="width: {{ email.spam_probability }}%; background-color: #ef4444;"></div>
+                        </div>
+                    </td>
+                    <td class="email-date-col">
+                        {{ email.created_at[:10] }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">🛡️</div>
+            <div class="empty-state-title">No Spam Detected</div>
+            <p>Your spam quarantine folder is currently clean.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
