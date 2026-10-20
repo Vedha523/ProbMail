@@ -1,160 +1,172 @@
 {% extends "base.html" %}
 
 {% block title %}{{ email.subject }} - ProbMail{% endblock %}
-{% block page_title %}Email Inspection & Probability Analysis{% endblock %}
+{% block page_title %}Email Forensics & Inspection{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 16px;">
-    <a href="{{ url_for('inbox') if email.folder == 'inbox' else url_for('spam_folder') }}" class="btn-secondary">
-        &larr; Back to {{ 'Inbox' if email.folder == 'inbox' else 'Spam Folder' }}
+<div class="mb-3">
+    <a href="{{ url_for('inbox') if email.folder == 'inbox' else (url_for('spam_folder') if email.folder == 'spam' else url_for('sent_folder')) }}" class="btn-secondary btn-sm">
+        &larr; Back to {{ 'Inbox' if email.folder == 'inbox' else ('Spam Folder' if email.folder == 'spam' else 'Sent Messages') }}
     </a>
 </div>
 
-<div class="panel">
-    <div class="panel-body">
-        <!-- Email Header -->
+<div class="card email-view-card">
+    <div class="card-body">
+        <!-- Email Metadata Header -->
         <div class="email-view-header">
-            <h2 class="email-view-title">{{ email.subject }}</h2>
-            <div class="email-meta-row">
-                <div class="email-sender-details">
-                    <div class="user-avatar" style="width: 44px; height: 44px; font-size: 16px;">
-                        {{ email.sender_email[0] | upper }}
-                    </div>
-                    <div>
-                        <div style="font-weight: 700; font-size: 15px; color: var(--text-main);">
-                            {{ email.sender_email }}
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-muted);">
-                            To: <b>{{ email.receiver_email }}</b> &bull; Received on {{ email.created_at }}
-                        </div>
-                    </div>
-                </div>
-
+            <div class="email-view-title-row">
+                <h2 class="email-view-title">{{ email.subject }}</h2>
                 <div>
                     {% if email.prediction == 'SPAM' %}
-                    <span class="badge-tag badge-spam" style="font-size: 13px; padding: 6px 14px;">🚨 CLASSIFIED AS SPAM</span>
+                    <span class="badge-status-spam badge-lg">CLASSIFIED AS SPAM</span>
                     {% else %}
-                    <span class="badge-tag badge-ham" style="font-size: 13px; padding: 6px 14px;">✅ CLASSIFIED AS HAM</span>
+                    <span class="badge-status-ham badge-lg">CLASSIFIED AS HAM</span>
                     {% endif %}
+                </div>
+            </div>
+
+            <div class="email-meta-strip">
+                <div class="user-avatar" style="width: 40px; height: 40px; font-size: 15px;">
+                    {{ (email.sender_email[0] if email.sender_email else 'U') | upper }}
+                </div>
+                <div class="email-meta-info">
+                    <div class="email-sender-line">
+                        <strong>{{ email.sender_email }}</strong>
+                        <span class="text-muted text-sm">&rarr; To: <strong>{{ email.receiver_email }}</strong></span>
+                    </div>
+                    <div class="email-date-line text-muted text-sm">
+                        Received/Analyzed: {{ email.created_at }} &bull; Location: <strong>{{ email.folder | upper }}</strong>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Academic Explanation & Probabilities Panel -->
-        <div class="reason-box">
-            <div class="reason-box-header">
-                <div class="reason-title">
-                    <span>🔬</span> Bayesian Probability & Forensics Breakdown
+        <!-- Bayesian Forensics Breakdown Panel -->
+        <div class="forensics-panel">
+            <div class="forensics-header">
+                <div>
+                    <h3 class="forensics-title">Bayesian Probability & Forensics Breakdown</h3>
+                    <p class="forensics-subtitle">Calculated via Naive Bayes conditional probability with Laplace smoothing (α=1.0).</p>
                 </div>
-                <span class="code-pill">Laplace Additive Smoothing (α=1.0)</span>
+                <span class="badge-status-neutral">Inference Report</span>
             </div>
 
-            <!-- Probability Bars -->
-            <div class="prob-bars-grid">
-                <div class="prob-bar-card">
-                    <div class="prob-bar-label">
-                        <span style="color: #ef4444; font-weight: 700;">Spam Probability P(Spam | Text)</span>
-                        <span style="color: #ef4444; font-weight: 800; font-size: 15px;">{{ email.spam_probability }}%</span>
+            <!-- Dual Probability Progress Meters -->
+            <div class="prob-grid">
+                <div class="prob-card">
+                    <div class="prob-meta">
+                        <span class="prob-name">Spam Probability P(Spam | Text)</span>
+                        <span class="prob-value text-spam">{{ email.spam_probability }}%</span>
                     </div>
-                    <div class="prob-meter-container" style="height: 10px;">
-                        <div class="prob-meter-fill" style="width: {{ email.spam_probability }}%; background-color: #ef4444;"></div>
+                    <div class="progress-track">
+                        <div class="progress-bar bar-spam" style="width: {{ email.spam_probability }}%;"></div>
                     </div>
                 </div>
 
-                <div class="prob-bar-card">
-                    <div class="prob-bar-label">
-                        <span style="color: #10b981; font-weight: 700;">Ham Probability P(Ham | Text)</span>
-                        <span style="color: #10b981; font-weight: 800; font-size: 15px;">{{ email.ham_probability }}%</span>
+                <div class="prob-card">
+                    <div class="prob-meta">
+                        <span class="prob-name">Legitimate Probability P(Ham | Text)</span>
+                        <span class="prob-value text-ham">{{ email.ham_probability }}%</span>
                     </div>
-                    <div class="prob-meter-container" style="height: 10px;">
-                        <div class="prob-meter-fill" style="width: {{ email.ham_probability }}%; background-color: #10b981;"></div>
+                    <div class="progress-track">
+                        <div class="progress-bar bar-ham" style="width: {{ email.ham_probability }}%;"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Detected Structural Indicators -->
+            <!-- Forensic Structural Indicators -->
             {% if email.indicators %}
-            <div style="margin-bottom: 16px;">
-                <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 8px;">
-                    Detected Forensic Indicators:
-                </div>
+            <div class="indicators-section mt-3">
+                <h4 class="section-label">Detected Structural & Forensic Indicators:</h4>
                 <ul class="indicators-list">
                     {% for ind in email.indicators %}
-                    <li class="indicator-item">
-                        <span>•</span> <span>{{ ind }}</span>
-                    </li>
+                    <li>{{ ind }}</li>
                     {% endfor %}
                 </ul>
             </div>
             {% endif %}
 
-            <!-- Top Bayesian Words Table -->
+            <!-- Collapsible Advanced Token Details Section -->
             {% if email.top_words %}
-            <div style="margin-top: 14px;">
-                <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 8px;">
-                    Key Discriminative Tokens Evaluated via Bayes' Theorem:
+            <details class="advanced-tokens-details mt-3">
+                <summary class="tokens-summary">
+                    <span>View Advanced Token Analysis (Bayesian Conditional Probabilities)</span>
+                    <svg class="summary-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </summary>
+
+                <div class="tokens-table-wrap">
+                    <table class="app-table">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>P(Spam | Token)</th>
+                                <th>P(Ham | Token)</th>
+                                <th>Inference Tendency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for w in email.top_words %}
+                            <tr>
+                                <td><span class="code-token">{{ w.word }}</span></td>
+                                <td class="text-spam font-semibold">
+                                    {{ (w.p_spam_given_word * 100) | round(2) if w.p_spam_given_word is defined else 'N/A' }}%
+                                </td>
+                                <td class="text-ham font-semibold">
+                                    {{ (w.p_ham_given_word * 100) | round(2) if w.p_ham_given_word is defined else 'N/A' }}%
+                                </td>
+                                <td>
+                                    {% if w.p_spam_given_word is defined and w.p_spam_given_word >= 0.5 %}
+                                    <span class="badge-status-spam">Spam Leaning</span>
+                                    {% else %}
+                                    <span class="badge-status-ham">Ham Leaning</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <table class="data-table" style="background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0;">
-                    <thead>
-                        <tr>
-                            <th>Token</th>
-                            <th>P(Spam | Token)</th>
-                            <th>P(Ham | Token)</th>
-                            <th>Inference Tendency</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for w in email.top_words %}
-                        <tr>
-                            <td><span class="code-pill">{{ w.word }}</span></td>
-                            <td style="color: #ef4444; font-weight: 600;">
-                                {{ (w.p_spam_given_word * 100) | round(2) if w.p_spam_given_word is defined else 'N/A' }}%
-                            </td>
-                            <td style="color: #10b981; font-weight: 600;">
-                                {{ (w.p_ham_given_word * 100) | round(2) if w.p_ham_given_word is defined else 'N/A' }}%
-                            </td>
-                            <td>
-                                {% if w.p_spam_given_word is defined and w.p_spam_given_word >= 0.5 %}
-                                <span class="badge-tag badge-spam">Spam Indicator</span>
-                                {% else %}
-                                <span class="badge-tag badge-ham">Legitimate Indicator</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            </details>
             {% endif %}
         </div>
 
-        <!-- Email Body Content -->
-        <div class="email-body-text">{{ email.body }}</div>
+        <!-- Email Body Content View -->
+        <div class="email-body-container">
+            <h4 class="section-label" style="margin-bottom: 10px;">Email Body Content:</h4>
+            <div class="email-body-text">{{ email.body }}</div>
+        </div>
 
         <!-- User Feedback & Action Toolbar -->
-        <div class="feedback-actions">
-            <span style="font-size: 13px; font-weight: 600; color: #475569;">User Feedback Correction:</span>
+        <div class="feedback-toolbar">
+            <div class="feedback-left">
+                <span class="feedback-label">User Feedback & Model Audit:</span>
+                {% if email.prediction == 'HAM' %}
+                <form action="{{ url_for('submit_feedback', email_id=email.id) }}" method="POST" style="display: inline;">
+                    <input type="hidden" name="correction" value="SPAM">
+                    <button type="submit" class="btn-danger-outline btn-sm">
+                        <span>Mark as Spam (False Negative)</span>
+                    </button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('submit_feedback', email_id=email.id) }}" method="POST" style="display: inline;">
+                    <input type="hidden" name="correction" value="HAM">
+                    <button type="submit" class="btn-success-outline btn-sm">
+                        <span>Not Spam (Move to Inbox)</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
 
-            {% if email.prediction == 'HAM' %}
-            <form action="{{ url_for('submit_feedback', email_id=email.id) }}" method="POST" style="display: inline;">
-                <input type="hidden" name="correction" value="SPAM">
-                <button type="submit" class="btn-danger-outline">
-                    <span>🚨</span> Mark as Spam (Wrongly Classified)
-                </button>
-            </form>
-            {% else %}
-            <form action="{{ url_for('submit_feedback', email_id=email.id) }}" method="POST" style="display: inline;">
-                <input type="hidden" name="correction" value="HAM">
-                <button type="submit" class="btn-success-outline">
-                    <span>📥</span> Not Spam (Move to Inbox)
-                </button>
-            </form>
-            {% endif %}
-
-            <!-- Permanent Deletion Form -->
-            <form action="{{ url_for('delete_email_route', email_id=email.id) }}" method="POST" style="margin-left: auto; display: inline;" onsubmit="return confirm('Permanently delete this email?');">
-                <button type="submit" class="btn-secondary" style="color: #ef4444;">
-                    <span>🗑️</span> Delete Permanently
+            <!-- Permanent Deletion -->
+            <form action="{{ url_for('delete_email_route', email_id=email.id) }}" method="POST" onsubmit="return confirm('Permanently delete this email record?');">
+                <button type="submit" class="btn-secondary btn-sm text-spam">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    <span>Delete Record</span>
                 </button>
             </form>
         </div>

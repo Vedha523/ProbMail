@@ -39,9 +39,9 @@ from spam_classifier import get_classifier, classify_email
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "probmail-academic-project-secret-key-2026")
 
-# Configure session cookies for iframe compatibility
-app.config["SESSION_COOKIE_SAMESITE"] = "None"
-app.config["SESSION_COOKIE_SECURE"] = True
+# Configure session cookies for local HTTP and browser compatibility
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["PERMANENT_SESSION_LIFETIME"] = 86400 * 7
 
@@ -159,8 +159,8 @@ def quick_login():
             "probmail_token",
             token,
             max_age=86400 * 7,
-            samesite="None",
-            secure=True,
+            samesite="Lax",
+            secure=False,
             httponly=False
         )
         return resp
@@ -196,8 +196,8 @@ def login():
                 "probmail_token",
                 token,
                 max_age=86400 * 7,
-                samesite="None",
-                secure=True,
+                samesite="Lax",
+                secure=False,
                 httponly=False
             )
             return resp
@@ -250,8 +250,8 @@ def register():
                 "probmail_token",
                 token,
                 max_age=86400 * 7,
-                samesite="None",
-                secure=True,
+                samesite="Lax",
+                secure=False,
                 httponly=False
             )
             return resp
@@ -266,7 +266,7 @@ def logout():
     session.clear()
     flash("You have been signed out safely.", "info")
     resp = redirect(url_for("login"))
-    resp.delete_cookie("probmail_token", samesite="None", secure=True)
+    resp.delete_cookie("probmail_token", samesite="Lax")
     return resp
 
 # --------------------------------------------------------------------------
@@ -276,23 +276,25 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    """Main academic dashboard with model metrics, charts, and mailbox stats."""
-    user_id = session["user_id"]
-    folder_counts = EmailModel.get_folder_counts(user_id)
-    recent_emails = EmailModel.get_emails_for_user(user_id, folder="inbox") + \
-                    EmailModel.get_emails_for_user(user_id, folder="spam")
-    recent_emails.sort(key=lambda x: x["created_at"], reverse=True)
-
+    """
+    Clean Operational Overview Dashboard:
+    - 4 compact KPI cards using actual database values:
+      1. Total emails processed
+      2. Legitimate emails (HAM)
+      3. Spam emails detected
+      4. Spam detection rate (%)
+    - Readable classification distribution visualization
+    - Recent classifications table from persistent database
+    """
+    system_stats = EmailModel.get_system_stats()
+    recent_emails = EmailModel.get_all_classifications()[:6]
     metadata = classifier.get_metadata()
-    total_user_emails = folder_counts["inbox_total"] + folder_counts["spam_total"] + folder_counts["sent_total"]
 
     return render_template(
         "dashboard.html",
         active_page="dashboard",
-        total_user_emails=total_user_emails,
-        recent_emails=recent_emails[:6],
-        eval_metrics=metadata.get("eval_metrics", {}),
-        chi2_results=metadata.get("chi2_results", {}),
+        system_stats=system_stats,
+        recent_emails=recent_emails,
         dataset_stats=metadata.get("dataset_stats", {})
     )
 
@@ -317,10 +319,11 @@ def spam_folder():
 @app.route("/sent")
 @login_required
 def sent_folder():
-    """Displays emails sent by the logged-in user."""
+    """Displays emails submitted/sent by the logged-in user."""
     user_id = session["user_id"]
-    emails = EmailModel.get_emails_for_user(user_id, folder="sent")
-    return render_template("inbox.html", active_page="sent", emails=emails)
+    query = request.args.get("q", "")
+    emails = EmailModel.get_emails_for_user(user_id, folder="sent", search_query=query)
+    return render_template("sent.html", active_page="sent", emails=emails, search_query=query)
 
 # --------------------------------------------------------------------------
 # Email Composition & Spam Classification Pipeline
@@ -330,30 +333,40 @@ def sent_folder():
 @login_required
 def compose_email():
     """
-    Composes and classifies an email in real time.
-    Executes:
-    1. Extract Subject & Body
-    2. Run Preprocessing & Feature Extraction
-    3. Calculate Conditional Probability via Bayes' Theorem
-    4. Store email in SQLite
-    5. Place in Inbox (if Ham) or Spam (if Spam)
+    Primary Workflow: Compose and Classify Email.
+    - Validates required subject & body.
+    - Evaluates conditional probabilities with Bayesian inference.
+    - Saves the message to local database:
+      * Ham -> legitimate mailbox (Inbox)
+      * Spam -> spam folder quarantine
+      * Both -> recorded in Sent Messages
+    - Returns JSON for interactive AJAX or renders compose.html with result panel.
     """
     sender_id = session["user_id"]
     sender_email = session["user_email"]
 
     if request.method == "POST":
-        receiver_email = request.form.get("receiver_email", "").strip().lower()
-        subject = request.form.get("subject", "").strip()
-        body = request.form.get("body", "").strip()
+        is_ajax = request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        if request.is_json:
+            data = request.get_json() or {}
+            receiver_email = data.get("receiver_email", "").strip().lower()
+            subject = data.get("subject", "").strip()
+            body = data.get("body", "").strip()
+        else:
+            receiver_email = request.form.get("receiver_email", "").strip().lower()
+            subject = request.form.get("subject", "").strip()
+            body = request.form.get("body", "").strip()
 
-        if not receiver_email or not subject or not body:
-            flash("Recipient, Subject, and Body are all required.", "error")
+        if not subject or not body:
+            error_msg = "Both Email Subject and Message Body are required to classify an email."
+            if is_ajax:
+                return jsonify({"success": False, "error": error_msg}), 400
+            flash(error_msg, "error")
             users = UserModel.get_all_users()
             return render_template("compose.html", active_page="compose", users=users)
 
-        # Look up recipient user
-        recipient = UserModel.get_by_email(receiver_email)
-        receiver_id = recipient["id"] if recipient else sender_id
+        if not receiver_email:
+            receiver_email = "recipient@probmail.ac.in"
 
         # ------------------------------------------------------------------
         # CLASSIFICATION ENGINE EXECUTION (Bayes' Theorem & Conditional Prob)
@@ -366,10 +379,12 @@ def compose_email():
         indicators = result["indicators"]
         top_words = result["top_words"]
 
-        # Store in database
+        # Local mailbox delivery:
+        # Saved with sender_id = user_id and receiver_id = user_id
+        # Guarantees the email appears in the user's Inbox/Spam and Sent Messages
         saved_email = EmailModel.create(
             sender_id=sender_id,
-            receiver_id=receiver_id,
+            receiver_id=sender_id,
             sender_email=sender_email,
             receiver_email=receiver_email,
             subject=subject,
@@ -382,18 +397,46 @@ def compose_email():
             top_words=top_words
         )
 
-        if prediction == "SPAM":
-            flash(
-                f"🚨 Message evaluated as SPAM (Spam Probability: {spam_prob}%). Automatically routed to Spam folder.",
-                "error"
-            )
-        else:
-            flash(
-                f"✅ Message evaluated as HAM (Ham Probability: {ham_prob}%). Successfully delivered to Inbox.",
-                "success"
-            )
+        dest_mailbox = "Legitimate Mailbox (Inbox)" if prediction == "HAM" else "Spam Folder (Quarantine)"
 
-        return redirect(url_for("view_email", email_id=saved_email["id"]))
+        if is_ajax:
+            return jsonify({
+                "success": True,
+                "email_id": saved_email["id"],
+                "subject": saved_email["subject"],
+                "prediction": prediction,
+                "spam_probability": spam_prob,
+                "ham_probability": ham_prob,
+                "folder": folder,
+                "destination_label": dest_mailbox,
+                "indicators": indicators,
+                "top_words": top_words[:5],
+                "view_url": url_for("view_email", email_id=saved_email["id"])
+            })
+
+        flash(
+            f"Email classified as {prediction} ({spam_prob}% Spam / {ham_prob}% Ham) and saved to {dest_mailbox}.",
+            "error" if prediction == "SPAM" else "success"
+        )
+        users = UserModel.get_all_users()
+        return render_template(
+            "compose.html",
+            active_page="compose",
+            users=users,
+            result={
+                "id": saved_email["id"],
+                "prediction": prediction,
+                "spam_probability": spam_prob,
+                "ham_probability": ham_prob,
+                "folder": folder,
+                "destination_label": dest_mailbox,
+                "indicators": indicators,
+                "top_words": top_words[:5]
+            },
+            submitted_subject=subject,
+            submitted_body=body,
+            submitted_receiver=receiver_email
+        )
 
     users = UserModel.get_all_users()
     return render_template("compose.html", active_page="compose", users=users)
@@ -454,37 +497,96 @@ def delete_email_route(email_id):
 @app.route("/history")
 @login_required
 def classification_history():
-    """Displays the complete classification audit trail and user feedback logs."""
-    user_id = session["user_id"]
-    emails = EmailModel.get_emails_for_user(user_id, folder="inbox") + \
-             EmailModel.get_emails_for_user(user_id, folder="spam")
-    emails.sort(key=lambda x: x["created_at"], reverse=True)
+    """
+    Displays the complete persistent classification audit trail and user feedback logs.
+    Supports live text search and class filter (All, HAM, SPAM).
+    """
+    query = request.args.get("q", "")
+    pred_filter = request.args.get("filter", "")
+    emails = EmailModel.get_all_classifications(search_query=query, prediction_filter=pred_filter)
     feedback_list = FeedbackModel.get_all_feedback()
 
     return render_template(
         "history.html",
         active_page="history",
         emails=emails,
-        feedback_list=feedback_list
+        feedback_list=feedback_list,
+        search_query=query,
+        current_filter=pred_filter
     )
 
 @app.route("/statistics")
 @login_required
 def statistics_page():
     """
-    In-depth academic statistics page:
-    - Descriptive stats (Mean, Median, Std dev of length, URLs, special chars)
-    - Chi-Square (χ²) analysis table with p-values
-    - Confusion Matrix (TP, TN, FP, FN) with visualization
+    Organized Academic Statistics Page:
+    - Section A: Model Evaluation (Accuracy, Precision, Recall, F1 on Enron test split)
+    - Section B: Chi-Square (χ²) Feature Analysis Table (p < 0.05)
+    - Section C: Descriptive Statistics Comparison (Ham vs Spam)
+    - Max 2 charts: Class distribution and Confusion matrix
     """
     metadata = classifier.get_metadata()
+    system_stats = EmailModel.get_system_stats()
     return render_template(
         "statistics.html",
         active_page="statistics",
         eval_metrics=metadata.get("eval_metrics", {}),
         chi2_results=metadata.get("chi2_results", {}),
-        dataset_stats=metadata.get("dataset_stats", {})
+        dataset_stats=metadata.get("dataset_stats", {}),
+        system_stats=system_stats,
+        training_samples=metadata.get("training_samples", 1200),
+        testing_samples=metadata.get("testing_samples", 300)
     )
+
+# --------------------------------------------------------------------------
+# Dashboard Live Updates & Analytics API
+# --------------------------------------------------------------------------
+
+@app.route("/api/dashboard-stats")
+@login_required
+def api_dashboard_stats():
+    """
+    Lightweight authenticated JSON endpoint returning live dashboard metrics:
+    - total_processed
+    - ham_count
+    - spam_count
+    - spam_rate
+    - recent_classifications (latest 6 records)
+    - folder_counts
+    - timestamp
+    """
+    from datetime import datetime
+    user_id = session["user_id"]
+    system_stats = EmailModel.get_system_stats()
+    recent_records = EmailModel.get_all_classifications()[:6]
+    folder_counts = EmailModel.get_folder_counts(user_id)
+
+    recent_list = []
+    for em in recent_records:
+        recent_list.append({
+            "id": em["id"],
+            "sender_email": em.get("sender_email", ""),
+            "receiver_email": em.get("receiver_email", ""),
+            "subject": em.get("subject", ""),
+            "body_snippet": (em.get("body") or "")[:65],
+            "prediction": em.get("prediction", "HAM"),
+            "spam_probability": em.get("spam_probability", 0.0),
+            "ham_probability": em.get("ham_probability", 0.0),
+            "is_read": em.get("is_read", 0),
+            "created_date": em["created_at"][:10] if em.get("created_at") else "",
+            "view_url": url_for("view_email", email_id=em["id"])
+        })
+
+    return jsonify({
+        "success": True,
+        "total_processed": system_stats["total_processed"],
+        "ham_count": system_stats["ham_count"],
+        "spam_count": system_stats["spam_count"],
+        "spam_rate": system_stats["spam_rate"],
+        "recent_classifications": recent_list,
+        "folder_counts": folder_counts,
+        "timestamp": datetime.now().strftime("%H:%M:%S")
+    })
 
 # --------------------------------------------------------------------------
 # Dynamic API Endpoint for Interactive Bayes Calculator

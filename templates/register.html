@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - ProbMail Spam Classification Engine</title>
+    <title>Create Account - ProbMail</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="auth-page">
     <div class="auth-card">
         <div class="auth-header">
-            <div class="logo-badge auth-logo-badge">P(S)</div>
+            <div class="brand-icon auth-brand-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
+            </div>
             <h2 class="auth-title">Create Account</h2>
-            <p class="auth-subtitle">Spam Email Classification Engine Using Conditional Probability</p>
+            <p class="auth-subtitle">ProbMail Bayesian Spam Classification System</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="flash-container">
+                <div class="alert-container mb-3">
                     {% for category, message in messages %}
-                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                        <div class="alert alert-{{ category }}">
+                            <span>{{ message }}</span>
+                        </div>
                     {% endfor %}
                 </div>
             {% endif %}
@@ -45,7 +52,7 @@
                 <input type="password" id="confirm_password" name="confirm_password" class="form-input" required placeholder="Re-enter password">
             </div>
 
-            <button type="submit" class="btn-primary" style="width: 100%;">Complete Registration</button>
+            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Complete Registration</button>
         </form>
 
         <div class="auth-footer">

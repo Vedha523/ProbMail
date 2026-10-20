@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ProbMail{% endblock %} - Spam Classification Engine</title>
-    <!-- Normal Vanilla CSS -->
+    <title>{% block title %}ProbMail{% endblock %} - Bayesian Spam Classification System</title>
+    <!-- Shared Vanilla CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Chart.js for Interactive Dashboard Graphs -->
+    <!-- Chart.js for Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -30,13 +30,21 @@
             </div>
 
             <nav class="sidebar-nav">
-                <div class="nav-section-title">Mailboxes</div>
+                <div class="nav-section-title">Main</div>
+                <a href="{{ url_for('compose_email') }}" class="nav-item {% if active_page == 'compose' %}active{% endif %}">
+                    <div class="nav-item-left">
+                        <span>✏️</span> <span>Compose Email</span>
+                    </div>
+                </a>
+
                 <a href="{{ url_for('inbox') }}" class="nav-item {% if active_page == 'inbox' %}active{% endif %}">
                     <div class="nav-item-left">
                         <span>📥</span> <span>Inbox</span>
                     </div>
-                    {% if folder_counts and folder_counts.inbox_unread > 0 %}
-                    <span class="nav-badge badge-inbox">{{ folder_counts.inbox_unread }}</span>
+                    {% if folder_counts and folder_counts.inbox_total > 0 %}
+                    <span id="sidebarBadgeInbox" class="nav-badge badge-inbox">{{ folder_counts.inbox_total }}</span>
+                    {% else %}
+                    <span id="sidebarBadgeInbox" class="nav-badge badge-inbox" style="display: none;">0</span>
                     {% endif %}
                 </a>
 
@@ -44,8 +52,10 @@
                     <div class="nav-item-left">
                         <span>🚨</span> <span>Spam Folder</span>
                     </div>
-                    {% if folder_counts and folder_counts.spam_unread > 0 %}
-                    <span class="nav-badge badge-spam">{{ folder_counts.spam_unread }}</span>
+                    {% if folder_counts and folder_counts.spam_total > 0 %}
+                    <span id="sidebarBadgeSpam" class="nav-badge badge-spam">{{ folder_counts.spam_total }}</span>
+                    {% else %}
+                    <span id="sidebarBadgeSpam" class="nav-badge badge-spam" style="display: none;">0</span>
                     {% endif %}
                 </a>
 
@@ -53,9 +63,14 @@
                     <div class="nav-item-left">
                         <span>📤</span> <span>Sent Messages</span>
                     </div>
+                    {% if folder_counts and folder_counts.sent_total > 0 %}
+                    <span id="sidebarBadgeSent" class="nav-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1;">{{ folder_counts.sent_total }}</span>
+                    {% else %}
+                    <span id="sidebarBadgeSent" class="nav-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; display: none;">0</span>
+                    {% endif %}
                 </a>
 
-                <div class="nav-section-title">Academic & Analytics</div>
+                <div class="nav-section-title">Analytics</div>
                 <a href="{{ url_for('dashboard') }}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
                     <div class="nav-item-left">
                         <span>📊</span> <span>Dashboard</span>
@@ -64,13 +79,13 @@
 
                 <a href="{{ url_for('classification_history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">
                     <div class="nav-item-left">
-                        <span>📜</span> <span>Classification Log</span>
+                        <span>📜</span> <span>Classification History</span>
                     </div>
                 </a>
 
                 <a href="{{ url_for('statistics_page') }}" class="nav-item {% if active_page == 'statistics' %}active{% endif %}">
                     <div class="nav-item-left">
-                        <span>📐</span> <span>Statistics & χ²</span>
+                        <span>📐</span> <span>Statistical Analysis</span>
                     </div>
                 </a>
             </nav>
@@ -97,10 +112,10 @@
                 <div class="top-navbar-right">
                     <div class="search-box-container">
                         <span class="search-icon">🔍</span>
-                        <input type="text" id="liveSearchInput" class="search-input" placeholder="Search emails by subject or body...">
+                        <input type="text" id="liveSearchInput" class="search-input" placeholder="Search emails by subject or body..." value="{{ search_query or '' }}">
                     </div>
                     <div class="academic-badge">
-                        <span>🔬</span> B.Tech CSE Project
+                        <span>🔬</span> Bayesian Engine Active
                     </div>
                 </div>
             </header>
@@ -113,6 +128,7 @@
                             {% for category, message in messages %}
                                 <div class="flash-message flash-{{ category }}">
                                     <span>{{ message }}</span>
+                                    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;font-size:16px;cursor:pointer;float:right;line-height:1;">&times;</button>
                                 </div>
                             {% endfor %}
                         {% endif %}

@@ -1,120 +1,333 @@
 {% extends "base.html" %}
 
-{% block title %}Compose Email - ProbMail{% endblock %}
-{% block page_title %}Compose & Classify Email{% endblock %}
+{% block title %}Compose & Classify Email - ProbMail{% endblock %}
+{% block page_title %}Compose & Analyze Email{% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
-    <!-- Compose Form -->
-    <div class="panel">
-        <div class="panel-header">
-            <div class="panel-title">
-                <span>✏️</span> New Message
+<div class="compose-layout">
+    <!-- Main Column: Email Composition & Real-Time Classifier -->
+    <div class="compose-main">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Email Security Inspection</h2>
+                    <p class="card-subtitle">Analyze incoming or authored emails locally with Bayesian inference.</p>
+                </div>
+                <span class="badge-status-neutral">Local Bayesian Evaluation</span>
             </div>
-            <span class="code-pill">Real-time Bayesian Analysis</span>
+
+            <div class="card-body">
+                <form id="composeForm" action="{{ url_for('compose_email') }}" method="POST">
+                    <div class="form-group">
+                        <label class="form-label" for="receiver_email">Recipient Email Address</label>
+                        <input type="email" id="receiver_email" name="receiver_email" class="form-input" 
+                               placeholder="e.g. colleague@enron.org or client@company.com" 
+                               value="{{ submitted_receiver or 'colleague@probmail.ac.in' }}">
+                        <span class="form-hint">Used for mailbox indexing. All classifications are processed and stored locally.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="subject">Email Subject <span class="required-indicator">*</span></label>
+                        <input type="text" id="subject" name="subject" class="form-input" required 
+                               placeholder="Enter email subject line..." 
+                               value="{{ submitted_subject or '' }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="body">Email Message Body <span class="required-indicator">*</span></label>
+                        <textarea id="body" name="body" class="form-textarea" rows="8" required 
+                                  placeholder="Type or paste the complete email message content here...">{{ submitted_body or '' }}</textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="analyzeBtn" class="btn-primary">
+                            <span class="btn-spinner" id="analyzeSpinner" style="display: none;"></span>
+                            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <span id="analyzeBtnText">Analyze Email</span>
+                        </button>
+                        <button type="button" id="clearBtn" class="btn-secondary">Clear Form</button>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="panel-body">
-            <form action="{{ url_for('compose_email') }}" method="POST">
-                <div class="form-group">
-                    <label class="form-label" for="receiver_email">Recipient Email Address</label>
-                    <select name="receiver_email" id="receiver_email" class="form-select" required>
-                        <option value="">-- Select Recipient --</option>
-                        {% for u in users %}
-                        <option value="{{ u.email }}" {% if request.form.get('receiver_email') == u.email or (loop.first and u.id != session.user_id) %}selected{% endif %}>
-                            {{ u.name }} ({{ u.email }})
-                        </option>
-                        {% endfor %}
-                    </select>
+        <!-- Dynamic Loading State Box (hidden by default) -->
+        <div id="loadingBox" class="card loading-card" style="display: none;">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <div>
+                    <h3 class="loading-title">Evaluating Message with Bayesian Engine...</h3>
+                    <p class="loading-desc">Extracting TF-IDF n-grams, checking Chi-Square features, and computing posterior probabilities.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classification Result Panel -->
+        <div id="resultPanel" class="card result-card" style="{% if not result %}display: none;{% endif %}">
+            <div class="card-header result-header {% if result and result.prediction == 'SPAM' %}result-header-spam{% else %}result-header-ham{% endif %}" id="resultHeader">
+                <div class="result-badge-wrap">
+                    <span class="result-badge {% if result and result.prediction == 'SPAM' %}badge-spam-pill{% else %}badge-ham-pill{% endif %}" id="resultBadge">
+                        {{ result.prediction if result else 'HAM' }}
+                    </span>
+                    <div>
+                        <h3 class="result-title" id="resultTitle">
+                            {% if result and result.prediction == 'SPAM' %}
+                            Spam Email Detected
+                            {% elif result %}
+                            Legitimate Email (HAM) Verified
+                            {% else %}
+                            Classification Result
+                            {% endif %}
+                        </h3>
+                        <p class="result-routing" id="resultRouting">
+                            {% if result %}
+                            Routed to {{ result.destination_label }} &bull; Recorded in Sent Messages
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <!-- Dual Probability Meters -->
+                <div class="prob-grid">
+                    <div class="prob-card">
+                        <div class="prob-meta">
+                            <span class="prob-name">Spam Probability P(Spam | X)</span>
+                            <span class="prob-value text-spam" id="spamProbVal">{{ result.spam_probability if result else '0.0' }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-bar bar-spam" id="spamProgressBar" style="width: {{ result.spam_probability if result else 0 }}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="prob-card">
+                        <div class="prob-meta">
+                            <span class="prob-name">Legitimate Probability P(Ham | X)</span>
+                            <span class="prob-value text-ham" id="hamProbVal">{{ result.ham_probability if result else '0.0' }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-bar bar-ham" id="hamProgressBar" style="width: {{ result.ham_probability if result else 0 }}%;"></div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="subject">Email Subject</label>
-                    <input type="text" id="subject" name="subject" class="form-input" required placeholder="Subject line..." value="{{ request.form.get('subject', '') }}">
+                <!-- Explanation of Strongest Indicators -->
+                <div class="indicators-section" id="indicatorsSection" style="{% if not (result and result.indicators) %}display: none;{% endif %}">
+                    <h4 class="section-label">Strongest Classification Indicators:</h4>
+                    <ul class="indicators-list" id="indicatorsList">
+                        {% if result and result.indicators %}
+                            {% for ind in result.indicators %}
+                            <li>{{ ind }}</li>
+                            {% endfor %}
+                        {% endif %}
+                    </ul>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="body">Email Message Body</label>
-                    <textarea id="body" name="body" class="form-textarea" required placeholder="Write your email content here...">{{ request.form.get('body', '') }}</textarea>
+                <!-- Action to View Full Forensic Analysis -->
+                <div class="result-actions">
+                    <a href="{% if result %}{{ url_for('view_email', email_id=result.id) }}{% else %}#{% endif %}" id="viewAnalysisLink" class="btn-primary">
+                        <span>View Detailed Analysis &rarr;</span>
+                    </a>
+                    <a href="{{ url_for('inbox') }}" class="btn-secondary">Go to Inbox</a>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <button type="submit" class="btn-primary">
-                        <span>🚀</span> Send & Classify Message
-                    </button>
-                    <button type="reset" class="btn-secondary">Clear</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Viva Demonstration Quick Samples Box -->
-    <div class="panel">
-        <div class="panel-header">
-            <div class="panel-title">
-                <span>🧪</span> Viva Demo Templates
+    <!-- Secondary Column: Exactly 3 Example Messages for Testing -->
+    <div class="compose-sidebar">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title">Test Example Messages</h3>
+                    <p class="card-subtitle">Click to populate form fields without submitting:</p>
+                </div>
             </div>
-        </div>
-        <div class="panel-body">
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
-                Click any template below to automatically fill the form and demonstrate how the classifier evaluates different patterns:
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button type="button" class="btn-secondary" onclick="loadSample('ham1')" style="text-align: left; justify-content: flex-start;">
-                    <span>📄</span>
-                    <div>
-                        <div style="font-weight: 700; font-size: 13px; color: #10b981;">Enron Corporate Ham</div>
-                        <div style="font-size: 11px; color: #64748b;">Gas pipeline schedule & meetings</div>
+            <div class="card-body example-list">
+                <!-- Example 1: Legitimate Business Email -->
+                <div class="example-card" onclick="loadExample('ham')">
+                    <div class="example-header">
+                        <span class="example-tag tag-ham">Legitimate Business</span>
+                        <span class="example-badge">HAM</span>
                     </div>
-                </button>
+                    <div class="example-subject">Q3 Financial Review & Pipeline Maintenance Schedule</div>
+                    <div class="example-preview">Vince Kaminski: Review of tariff models and conference call agenda...</div>
+                </div>
 
-                <button type="button" class="btn-secondary" onclick="loadSample('spam1')" style="text-align: left; justify-content: flex-start;">
-                    <span>🚨</span>
-                    <div>
-                        <div style="font-weight: 700; font-size: 13px; color: #ef4444;">Lottery Prize Scam</div>
-                        <div style="font-size: 11px; color: #64748b;">High URLs, cash keywords, capital letters</div>
+                <!-- Example 2: Obvious Promotional Spam -->
+                <div class="example-card" onclick="loadExample('spam_lottery')">
+                    <div class="example-header">
+                        <span class="example-tag tag-spam">Promotional Spam</span>
+                        <span class="example-badge">SPAM</span>
                     </div>
-                </button>
+                    <div class="example-subject">URGENT: Claim $2,500,000 Cash Prize Winner!</div>
+                    <div class="example-preview">Randomly selected cash prize with claim link and guaranteed payout...</div>
+                </div>
 
-                <button type="button" class="btn-secondary" onclick="loadSample('spam2')" style="text-align: left; justify-content: flex-start;">
-                    <span>🚨</span>
-                    <div>
-                        <div style="font-weight: 700; font-size: 13px; color: #ef4444;">Mortgage Refinance Spam</div>
-                        <div style="font-size: 11px; color: #64748b;">Interest rate, zero credit check</div>
+                <!-- Example 3: Suspicious Phishing Email -->
+                <div class="example-card" onclick="loadExample('spam_phish')">
+                    <div class="example-header">
+                        <span class="example-tag tag-spam">Phishing Lure</span>
+                        <span class="example-badge">SPAM</span>
                     </div>
-                </button>
-            </div>
+                    <div class="example-subject">Security Alert: Immediate Account Verification Required</div>
+                    <div class="example-preview">Suspicious unauthorized login detected; click external URL to verify...</div>
+                </div>
 
-            <div style="margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #64748b;">
-                <b>How it works:</b>
-                <ol style="margin-left: 18px; margin-top: 6px; line-height: 1.5;">
-                    <li>Text Preprocessing cleans Subject + Body.</li>
-                    <li>TF-IDF features are extracted.</li>
-                    <li>MultinomialNB evaluates likelihoods.</li>
-                    <li>Bayes' rule yields Spam & Ham probabilities.</li>
-                    <li>Routed automatically to Inbox or Spam!</li>
-                </ol>
+                <div class="example-note">
+                    <strong>Testing Tip:</strong> These pre-configured samples demonstrate how Bayesian probability reacts to legitimate corporate vocabulary versus aggressive urgency and external links.
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-function loadSample(type) {
-    const subjInput = document.getElementById('subject');
-    const bodyInput = document.getElementById('body');
-
-    if (type === 'ham1') {
-        subjInput.value = "Schedule for Thursday strategy meeting regarding pipeline maintenance";
-        bodyInput.value = "Hi team,\n\nPlease find attached the agenda for our Thursday 2 PM conference call in Houston. We will review the Q3 volume projections and natural gas transport tariffs.\n\nBest regards,\nVince Kaminski\nEnron Energy Services";
-    } else if (type === 'spam1') {
-        subjInput.value = "URGENT WINNER: Claim your $2,500,000 cash lottery prize now!";
-        bodyInput.value = "CONGRATULATIONS! You have been randomly selected as our grand winner of $2,500,000 cash. To claim your prize immediately, click here http://claim-prize-cash.net/claim and submit your account info today. Free guaranteed payout with no risk! Call 1-800-555-4819 now!";
-    } else if (type === 'spam2') {
-        subjInput.value = "Refinance your mortgage at 1.99% guaranteed rate today!";
-        bodyInput.value = "Are you tired of paying high monthly interest? Refinance your home mortgage now! Rates as low as 1.99%. No credit check, no paperwork, fast online approval. Visit http://cheap-loans-direct.net/apply and save thousands today!";
+// Test Example Payloads (3 distinct academic cases)
+const EXAMPLES = {
+    ham: {
+        receiver: "vince.kaminski@enron.org",
+        subject: "Q3 Financial Review & Pipeline Maintenance Schedule",
+        body: "Good morning Vince,\n\nPlease find attached the econometric models for Henry Hub forward contract pricing. We have incorporated the regulatory tariffs according to FERC guidelines.\n\nLet us review the Q3 volume projections during our Thursday 2 PM strategy meeting in Houston.\n\nBest regards,\nArjun Sharma\nQuantitative Modeling Team"
+    },
+    spam_lottery: {
+        receiver: "claims@global-jackpot-winner.com",
+        subject: "URGENT: Claim $2,500,000 Cash Prize Winner!",
+        body: "CONGRATULATIONS WINNER!\n\nYour email address has won $2,500,000 cash in the Global International Sweepstakes. 100% Guaranteed payout with zero fees!\n\nTo claim your cash prize immediately, click here: http://prize-claim-center99.com/verify and enter your bank account routing number.\n\nAct now! Call 1-800-555-0199 today!"
+    },
+    spam_phish: {
+        receiver: "security@online-account-protect.net",
+        subject: "Security Alert: Immediate Account Verification Required",
+        body: "Urgent Security Warning:\n\nWe detected suspicious login attempts to your mailbox from an unknown IP address. To prevent permanent suspension of your account, you must verify your identity immediately.\n\nVisit: http://secure-auth-update.biz/login to confirm your username and password within 24 hours.\n\nFailure to act will result in account termination."
     }
+};
+
+function loadExample(type) {
+    const ex = EXAMPLES[type];
+    if (!ex) return;
+    document.getElementById('receiver_email').value = ex.receiver;
+    document.getElementById('subject').value = ex.subject;
+    document.getElementById('body').value = ex.body;
+    
+    // Smooth scroll to top of form on small screens
+    document.getElementById('subject').focus();
 }
+
+// Clear Form Handler
+document.getElementById('clearBtn').addEventListener('click', function() {
+    document.getElementById('receiver_email').value = "colleague@probmail.ac.in";
+    document.getElementById('subject').value = "";
+    document.getElementById('body').value = "";
+    document.getElementById('resultPanel').style.display = "none";
+});
+
+// Interactive AJAX Form Submission for Smooth Workflow
+document.getElementById('composeForm').addEventListener('submit', function(e) {
+    const subj = document.getElementById('subject').value.trim();
+    const body = document.getElementById('body').value.trim();
+    const receiver = document.getElementById('receiver_email').value.trim();
+
+    if (!subj || !body) {
+        alert("Please enter both an Email Subject and Message Body.");
+        e.preventDefault();
+        return;
+    }
+
+    // Intercept with AJAX for seamless workflow
+    e.preventDefault();
+
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const analyzeBtnText = document.getElementById('analyzeBtnText');
+    const analyzeSpinner = document.getElementById('analyzeSpinner');
+    const loadingBox = document.getElementById('loadingBox');
+    const resultPanel = document.getElementById('resultPanel');
+
+    // UI Loading state
+    analyzeBtn.disabled = true;
+    analyzeBtnText.textContent = "Analyzing...";
+    analyzeSpinner.style.display = "inline-block";
+    loadingBox.style.display = "block";
+    resultPanel.style.display = "none";
+
+    fetch("{{ url_for('compose_email') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({
+            receiver_email: receiver,
+            subject: subj,
+            body: body
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        analyzeBtn.disabled = false;
+        analyzeBtnText.textContent = "Analyze Email";
+        analyzeSpinner.style.display = "none";
+        loadingBox.style.display = "none";
+
+        if (!data.success) {
+            alert(data.error || "Classification failed.");
+            return;
+        }
+
+        // Render Result Panel
+        const isSpam = (data.prediction === "SPAM");
+        const resultHeader = document.getElementById('resultHeader');
+        const resultBadge = document.getElementById('resultBadge');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultRouting = document.getElementById('resultRouting');
+        const spamProbVal = document.getElementById('spamProbVal');
+        const hamProbVal = document.getElementById('hamProbVal');
+        const spamProgressBar = document.getElementById('spamProgressBar');
+        const hamProgressBar = document.getElementById('hamProgressBar');
+        const indicatorsSection = document.getElementById('indicatorsSection');
+        const indicatorsList = document.getElementById('indicatorsList');
+        const viewAnalysisLink = document.getElementById('viewAnalysisLink');
+
+        resultHeader.className = "card-header result-header " + (isSpam ? "result-header-spam" : "result-header-ham");
+        resultBadge.className = "result-badge " + (isSpam ? "badge-spam-pill" : "badge-ham-pill");
+        resultBadge.textContent = data.prediction;
+        resultTitle.textContent = isSpam ? "Spam Email Detected" : "Legitimate Email (HAM) Verified";
+        resultRouting.innerHTML = `Routed to <strong>${data.destination_label}</strong> &bull; Recorded in Sent Messages`;
+
+        spamProbVal.textContent = data.spam_probability + "%";
+        hamProbVal.textContent = data.ham_probability + "%";
+        spamProgressBar.style.width = data.spam_probability + "%";
+        hamProgressBar.style.width = data.ham_probability + "%";
+
+        // Indicators
+        if (data.indicators && data.indicators.length > 0) {
+            indicatorsList.innerHTML = data.indicators.map(ind => `<li>${ind}</li>`).join("");
+            indicatorsSection.style.display = "block";
+        } else {
+            indicatorsSection.style.display = "none";
+        }
+
+        viewAnalysisLink.href = data.view_url;
+        resultPanel.style.display = "block";
+        resultPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+        // Live dashboard / sidebar badges synchronization
+        if (typeof window.refreshDashboardData === "function") {
+            window.refreshDashboardData();
+        }
+    })
+    .catch(err => {
+        analyzeBtn.disabled = false;
+        analyzeBtnText.textContent = "Analyze Email";
+        analyzeSpinner.style.display = "none";
+        loadingBox.style.display = "none";
+        alert("Server communication error. Please try again.");
+    });
+});
 </script>
 {% endblock %}

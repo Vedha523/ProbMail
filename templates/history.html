@@ -1,119 +1,177 @@
 {% extends "base.html" %}
 
 {% block title %}Classification History - ProbMail{% endblock %}
-{% block page_title %}Classification Log & User Feedback Audits{% endblock %}
+{% block page_title %}Classification History & Audit Log{% endblock %}
 
 {% block content %}
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>📜</span> Full Email Classification History
+<div class="card mb-4">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div>
+            <h2 class="card-title">Classification Audit Records</h2>
+            <p class="card-subtitle">
+                Persistent log of all emails processed by the Bayesian classification engine.
+            </p>
         </div>
-        <span class="code-pill">{{ emails|length }} Processed Email(s)</span>
+
+        <div class="filter-toolbar">
+            <!-- Filter Pills -->
+            <div class="filter-pills">
+                <a href="{{ url_for('classification_history', q=search_query) }}" 
+                   class="filter-pill {% if not current_filter %}active{% endif %}">
+                    All ({{ emails|length }})
+                </a>
+                <a href="{{ url_for('classification_history', filter='HAM', q=search_query) }}" 
+                   class="filter-pill {% if current_filter == 'HAM' %}active{% endif %}">
+                    HAM (Legitimate)
+                </a>
+                <a href="{{ url_for('classification_history', filter='SPAM', q=search_query) }}" 
+                   class="filter-pill {% if current_filter == 'SPAM' %}active{% endif %}">
+                    SPAM (Quarantined)
+                </a>
+            </div>
+
+            <a href="{{ url_for('compose_email') }}" class="btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>Classify Email</span>
+            </a>
+        </div>
     </div>
 
-    <div class="panel-body" style="padding: 0;">
+    <div class="card-body p-0">
         {% if emails %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Date & Time</th>
-                    <th>Sender & Subject</th>
-                    <th>Prediction</th>
-                    <th>Spam Prob</th>
-                    <th>Ham Prob</th>
-                    <th>Current Mailbox</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for email in emails %}
-                <tr>
-                    <td><b>#{{ email.id }}</b></td>
-                    <td style="color: #64748b; font-size: 12px;">{{ email.created_at }}</td>
-                    <td>
-                        <div style="font-weight: 600; color: #0f172a;">{{ email.subject }}</div>
-                        <div style="font-size: 11px; color: #64748b;">From: {{ email.sender_email }}</div>
-                    </td>
-                    <td>
-                        {% if email.prediction == 'SPAM' %}
-                        <span class="badge-tag badge-spam">SPAM</span>
-                        {% else %}
-                        <span class="badge-tag badge-ham">HAM</span>
-                        {% endif %}
-                    </td>
-                    <td style="color: #ef4444; font-weight: 700;">{{ email.spam_probability }}%</td>
-                    <td style="color: #10b981; font-weight: 700;">{{ email.ham_probability }}%</td>
-                    <td>
-                        <span class="code-pill">{{ email.folder | upper }}</span>
-                    </td>
-                    <td>
-                        <a href="{{ url_for('view_email', email_id=email.id) }}" class="btn-secondary" style="padding: 4px 10px; font-size: 12px;">
-                            Inspect &rarr;
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">ID</th>
+                        <th style="width: 140px;">Date & Time</th>
+                        <th>Email Subject & Sender</th>
+                        <th style="width: 120px;">Classification</th>
+                        <th style="width: 110px;">Spam Prob</th>
+                        <th style="width: 110px;">Ham Prob</th>
+                        <th style="width: 100px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in emails %}
+                    <tr class="table-row-clickable" onclick="window.location.href='{{ url_for('view_email', email_id=email.id) }}'">
+                        <td class="text-mono text-muted text-sm font-semibold">
+                            #{{ email.id }}
+                        </td>
+                        <td class="text-muted text-sm whitespace-nowrap">
+                            {{ email.created_at[:16] }}
+                        </td>
+                        <td>
+                            <div class="table-subject">{{ email.subject }}</div>
+                            <div class="table-meta-line text-sm text-muted">
+                                From: <span class="text-mono">{{ email.sender_email }}</span>
+                                {% if email.receiver_email %}
+                                &bull; To: <span class="text-mono">{{ email.receiver_email }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if email.prediction == 'SPAM' %}
+                            <span class="badge-status-spam">SPAM</span>
+                            {% else %}
+                            <span class="badge-status-ham">HAM</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-spam font-semibold">
+                            {{ email.spam_probability }}%
+                        </td>
+                        <td class="text-ham font-semibold">
+                            {{ email.ham_probability }}%
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{{ url_for('view_email', email_id=email.id) }}" class="btn-table-action" onclick="event.stopPropagation();">
+                                Inspect &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer-bar">
+            <span class="text-muted text-sm">Total <strong>{{ emails|length }}</strong> record(s) found</span>
+        </div>
         {% else %}
         <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <div class="empty-state-title">No Classification Logs</div>
-            <p>Emails evaluated by the engine will appear here.</p>
+            <div class="empty-state-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                </svg>
+            </div>
+            <h3 class="empty-state-title">No Classification Records Found</h3>
+            <p class="empty-state-desc">
+                {% if search_query or current_filter %}
+                No emails matched your current filter criteria. Try clearing the search or switching filters.
+                {% else %}
+                No emails have been classified yet. Compose an email to generate the first classification record.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary" style="margin-top: 14px;">
+                Classify an Email
+            </a>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- User Feedback Audits Panel -->
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>⚖️</span> User Feedback & Correction Log
+<!-- User Feedback & Correction Log Panel -->
+{% if feedback_list %}
+<div class="card mt-4">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">User Feedback & Correction Log</h3>
+            <p class="card-subtitle">Audited manual overrides from end-users ("Mark as Spam" / "Not Spam").</p>
         </div>
-        <span class="code-pill">{{ feedback_list|length }} Correction(s)</span>
+        <span class="badge-status-neutral">{{ feedback_list|length }} Feedback Log(s)</span>
     </div>
-    <div class="panel-body" style="padding: 0;">
-        {% if feedback_list %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Log ID</th>
-                    <th>Email Subject</th>
-                    <th>User</th>
-                    <th>Original Model Verdict</th>
-                    <th>User Correction</th>
-                    <th>Logged At</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for f in feedback_list %}
-                <tr>
-                    <td>#{{ f.id }}</td>
-                    <td><b>{{ f.subject }}</b></td>
-                    <td>{{ f.user_name }}</td>
-                    <td><span class="code-pill">{{ f.original_prediction }}</span></td>
-                    <td>
-                        {% if f.corrected_label == 'SPAM' %}
-                        <span class="badge-tag badge-spam">Corrected to SPAM</span>
-                        {% else %}
-                        <span class="badge-tag badge-ham">Corrected to HAM</span>
-                        {% endif %}
-                    </td>
-                    <td style="color: #64748b; font-size: 12px;">{{ f.created_at }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-state-icon">✅</div>
-            <div class="empty-state-title">No Misclassifications Logged</div>
-            <p>Users have not submitted any corrections yet. All classifications match current mailbox routing.</p>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Log ID</th>
+                        <th>Subject</th>
+                        <th>User</th>
+                        <th>Original Model Verdict</th>
+                        <th>User Correction</th>
+                        <th>Date & Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in feedback_list %}
+                    <tr>
+                        <td class="text-mono text-muted text-sm">#{{ f.id }}</td>
+                        <td><strong>{{ f.subject }}</strong></td>
+                        <td class="text-sm">{{ f.user_name }}</td>
+                        <td>
+                            <span class="code-token">{{ f.original_prediction }}</span>
+                        </td>
+                        <td>
+                            {% if f.corrected_label == 'SPAM' %}
+                            <span class="badge-status-spam">Corrected to SPAM</span>
+                            {% else %}
+                            <span class="badge-status-ham">Corrected to HAM</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted text-sm">{{ f.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        {% endif %}
     </div>
 </div>
+{% endif %}
 {% endblock %}

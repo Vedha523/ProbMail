@@ -1,244 +1,158 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Model Metrics & Email Analytics{% endblock %}
-{% block page_title %}System Dashboard & Mathematical Overview{% endblock %}
+{% block title %}Dashboard - Operational Overview - ProbMail{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
 
 {% block content %}
-<!-- Academic Concept Banner -->
-<div class="math-card">
-    <div class="math-title">
-        <span>📐</span> Academic Foundation: Bayes' Theorem & Conditional Probability
-    </div>
-    <div class="math-formula">
-        P(Spam | X) = [ P(X | Spam) × P(Spam) ] / P(X) &nbsp;&nbsp;|&nbsp;&nbsp; P(Ham | X) = [ P(X | Ham) × P(Ham) ] / P(X)
-    </div>
-    <div class="math-explanation">
-        Each incoming email is decomposed into features <i>X = {w₁, w₂, ... wₙ}</i>. Using the Naive Bayes conditional independence assumption and Laplace smoothing (α=1.0), the engine calculates the posterior probability that the message is Spam or Ham. Chi-square (χ²) statistical testing isolates features with <i>p &lt; 0.05</i> significance.
-    </div>
-</div>
-
-<!-- Key Performance Metrics Grid -->
-<div class="grid-metrics">
+<!-- 4 Compact Operational KPI Cards -->
+<div class="grid-metrics" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
     <div class="metric-card">
         <div class="metric-icon-box metric-icon-blue">✉️</div>
         <div class="metric-info">
-            <div class="metric-label">User Total Emails</div>
-            <div class="metric-value">{{ total_user_emails }}</div>
-            <div class="metric-subtext">{{ folder_counts.inbox_unread + folder_counts.spam_unread }} unread messages</div>
+            <div class="metric-label">Total Emails Processed</div>
+            <div class="metric-value" id="kpiTotalProcessed">{{ system_stats.total_processed }}</div>
+            <div class="metric-subtext">Indexed in database</div>
         </div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon-box metric-icon-green">📥</div>
         <div class="metric-info">
-            <div class="metric-label">Legitimate (Ham)</div>
-            <div class="metric-value">{{ folder_counts.inbox_total }}</div>
-            <div class="metric-subtext">{{ folder_counts.inbox_unread }} unread</div>
+            <div class="metric-label">Legitimate (HAM)</div>
+            <div class="metric-value" id="kpiHamCount" style="color: #10b981;">{{ system_stats.ham_count }}</div>
+            <div class="metric-subtext">Delivered to inbox</div>
         </div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon-box metric-icon-red">🚨</div>
         <div class="metric-info">
-            <div class="metric-label">Spam Blocked</div>
-            <div class="metric-value">{{ folder_counts.spam_total }}</div>
-            <div class="metric-subtext">{{ folder_counts.spam_unread }} unread in spam</div>
-        </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-icon-box metric-icon-purple">🎯</div>
-        <div class="metric-info">
-            <div class="metric-label">Model Accuracy</div>
-            <div class="metric-value">{{ eval_metrics.get('accuracy_pct', 98.5) }}%</div>
-            <div class="metric-subtext">Evaluated on test set</div>
+            <div class="metric-label">Spam Detected</div>
+            <div class="metric-value" id="kpiSpamCount" style="color: #ef4444;">{{ system_stats.spam_count }}</div>
+            <div class="metric-subtext">Quarantined automatically</div>
         </div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon-box metric-icon-amber">⚖️</div>
         <div class="metric-info">
-            <div class="metric-label">F1 Score</div>
-            <div class="metric-value">{{ eval_metrics.get('f1_score_pct', 98.2) }}%</div>
-            <div class="metric-subtext">Prec: {{ eval_metrics.get('precision_pct', 98.0) }}% | Rec: {{ eval_metrics.get('recall_pct', 98.5) }}%</div>
+            <div class="metric-label">Spam Detection Rate</div>
+            <div class="metric-value" id="kpiSpamRate">{{ system_stats.spam_rate }}%</div>
+            <div class="metric-subtext">Of classified volume</div>
         </div>
     </div>
 </div>
 
-<!-- Charts Grid -->
-<div class="charts-grid">
-    <!-- Chart 1: Class Distribution -->
+<!-- Operational Split: Recent Classifications & Small Distribution Visualization -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Left: Recent Activity Table -->
     <div class="panel">
         <div class="panel-header">
-            <div class="panel-title">
-                <span>📊</span> Enron Corpus Class Distribution
+            <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                <span>📬</span> Recent Classifications
+                <span id="liveStatusContainer" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--text-muted); margin-left: 6px; padding: 2px 8px; background: #f1f5f9; border-radius: 12px; border: 1px solid var(--border);">
+                    <span id="liveStatusDot" style="width: 7px; height: 7px; border-radius: 50%; background-color: #10b981; display: inline-block;"></span>
+                    <span id="liveStatusText">Live &bull; Synced <span id="lastUpdatedTime">just now</span></span>
+                </span>
             </div>
-            <span class="code-pill">{{ dataset_stats.summary.total_emails if dataset_stats and dataset_stats.summary else '1,500' }} Total Samples</span>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary" style="font-size: 13px; padding: 6px 14px;">
+                <span>✏️</span> Classify New Email
+            </a>
         </div>
-        <div class="panel-body" style="height: 280px; position: relative;">
-            <canvas id="distributionChart" 
-                    data-ham="{{ dataset_stats.summary.ham_count if dataset_stats and dataset_stats.summary else 900 }}" 
-                    data-spam="{{ dataset_stats.summary.spam_count if dataset_stats and dataset_stats.summary else 600 }}">
-            </canvas>
-        </div>
-    </div>
 
-    <!-- Chart 2: Model Performance Metrics -->
-    <div class="panel">
-        <div class="panel-header">
-            <div class="panel-title">
-                <span>📈</span> Classifier Evaluation Metrics
-            </div>
-            <span class="code-pill">Laplace MultinomialNB</span>
-        </div>
-        <div class="panel-body" style="height: 280px; position: relative;">
-            <canvas id="metricsBarChart"
-                    data-acc="{{ eval_metrics.get('accuracy_pct', 100.0) }}"
-                    data-prec="{{ eval_metrics.get('precision_pct', 100.0) }}"
-                    data-rec="{{ eval_metrics.get('recall_pct', 100.0) }}"
-                    data-f1="{{ eval_metrics.get('f1_score_pct', 100.0) }}">
-            </canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Interactive Viva Bayes Calculator Widget -->
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>🔬</span> Viva Demonstration: Word Conditional Probability Calculator
-        </div>
-        <span class="code-pill">P(Spam | Word) Formula Demonstration</span>
-    </div>
-    <div class="panel-body">
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
-            Test any single word (e.g. <b>free</b>, <b>winner</b>, <b>pipeline</b>, <b>viagra</b>, <b>meeting</b>, <b>energy</b>) to see its exact prior, likelihood, evidence, and posterior probability computed dynamically from the Bayesian model:
-        </p>
-        <div style="display: flex; gap: 10px; max-width: 500px;">
-            <input type="text" id="bayesCalcInput" class="form-input" placeholder="Type a word (e.g. free, pipeline)..." value="free">
-            <button type="button" id="bayesCalcBtn" class="btn-primary" style="white-space: nowrap;">Compute P(S|w)</button>
-        </div>
-        <div id="bayesCalcResult"></div>
-    </div>
-</div>
-
-<!-- Top Chi-Square Statistically Significant Features -->
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>✨</span> Top Chi-Square (χ²) Statistically Significant Indicators
-        </div>
-        <a href="{{ url_for('statistics_page') }}" style="font-size: 13px; font-weight: 600;">View Full Analysis &rarr;</a>
-    </div>
-    <div class="panel-body" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e2e8f0;">
-            <!-- Top Spam Indicators -->
-            <div style="background: #ffffff; padding: 20px;">
-                <h4 style="font-size: 14px; font-weight: 700; color: #ef4444; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                    <span>🚨</span> Top Features Associated with SPAM (p &lt; 0.05)
-                </h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Feature Token</th>
-                            <th>Chi² Score</th>
-                            <th>p-value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for f in chi2_results.top_spam_features[:5] %}
-                        <tr>
-                            <td><span class="code-pill">{{ f.word }}</span></td>
-                            <td><b>{{ f.chi2_score }}</b></td>
-                            <td style="color: #059669; font-weight: 600;">{{ f.p_value_sci }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Top Ham Indicators -->
-            <div style="background: #ffffff; padding: 20px;">
-                <h4 style="font-size: 14px; font-weight: 700; color: #10b981; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                    <span>📥</span> Top Features Associated with HAM (p &lt; 0.05)
-                </h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Feature Token</th>
-                            <th>Chi² Score</th>
-                            <th>p-value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for f in chi2_results.top_ham_features[:5] %}
-                        <tr>
-                            <td><span class="code-pill">{{ f.word }}</span></td>
-                            <td><b>{{ f.chi2_score }}</b></td>
-                            <td style="color: #059669; font-weight: 600;">{{ f.p_value_sci }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Classified Emails Table -->
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>📬</span> Recent Mailbox Activity
-        </div>
-        <a href="{{ url_for('inbox') }}" style="font-size: 13px; font-weight: 600;">Open Inbox &rarr;</a>
-    </div>
-    <div class="panel-body" style="padding: 0;">
-        {% if recent_emails %}
-        <table class="email-table">
-            <tbody>
-                {% for email in recent_emails %}
-                <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}">
-                    <td class="email-badge-col">
-                        {% if email.prediction == 'SPAM' %}
-                        <span class="badge-tag badge-spam">SPAM</span>
-                        {% else %}
-                        <span class="badge-tag badge-ham">HAM</span>
-                        {% endif %}
-                    </td>
-                    <td class="email-sender-col">
-                        <b>{{ email.sender_email }}</b>
-                    </td>
-                    <td class="email-subject-col">
-                        <span>{{ email.subject }}</span>
-                        <span class="email-snippet">- {{ email.body[:65] }}...</span>
-                    </td>
-                    <td class="email-prob-col">
-                        <div class="prob-text">
+        <div class="panel-body" id="recentEmailsContainer" style="padding: 0;">
+            {% if recent_emails %}
+            <table class="email-table" id="recentEmailsTable">
+                <tbody id="recentEmailsTbody">
+                    {% for email in recent_emails %}
+                    <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}" onclick="window.location.href='{{ url_for('view_email', email_id=email.id) }}'">
+                        <td class="email-badge-col">
                             {% if email.prediction == 'SPAM' %}
-                            <span style="color: #ef4444;">{{ email.spam_probability }}% Spam</span>
+                            <span class="badge-tag badge-spam">SPAM</span>
                             {% else %}
-                            <span style="color: #10b981;">{{ email.ham_probability }}% Ham</span>
+                            <span class="badge-tag badge-ham">HAM</span>
                             {% endif %}
-                        </div>
-                        <div class="prob-meter-container">
-                            <div class="prob-meter-fill" style="width: {{ email.spam_probability }}%; background-color: {% if email.prediction == 'SPAM' %}#ef4444{% else %}#10b981{% endif %};"></div>
-                        </div>
-                    </td>
-                    <td class="email-date-col">
-                        {{ email.created_at[:10] }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-state-icon">📭</div>
-            <div class="empty-state-title">No emails yet</div>
-            <p>Compose an email or test the classifier to see activity here.</p>
+                        </td>
+                        <td class="email-sender-col">
+                            <b>{{ email.sender_email }}</b>
+                        </td>
+                        <td class="email-subject-col">
+                            <span>{{ email.subject }}</span>
+                            <span class="email-snippet">- {{ email.body[:65] }}...</span>
+                        </td>
+                        <td class="email-prob-col">
+                            <div class="prob-text">
+                                {% if email.prediction == 'SPAM' %}
+                                <span style="color: #ef4444; font-weight: 700;">{{ email.spam_probability }}% Spam</span>
+                                {% else %}
+                                <span style="color: #10b981; font-weight: 700;">{{ email.ham_probability }}% Ham</span>
+                                {% endif %}
+                            </div>
+                            <div class="prob-meter-container">
+                                <div class="prob-meter-fill" style="width: {{ email.spam_probability }}%; background-color: {% if email.prediction == 'SPAM' %}#ef4444{% else %}#10b981{% endif %};"></div>
+                            </div>
+                        </td>
+                        <td class="email-date-col">
+                            {{ email.created_at[:10] }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div id="recentEmailsFooter" style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted);">
+                <span id="recentEmailsCountText">Showing latest {{ recent_emails|length }} classification record(s)</span>
+                <a href="{{ url_for('classification_history') }}" style="font-weight: 600;">View Full History &rarr;</a>
+            </div>
+            {% else %}
+            <div class="empty-state" id="recentEmailsEmptyState">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-title">No emails processed yet</div>
+                <p>Compose an email or test the classifier to generate operational data.</p>
+                <a href="{{ url_for('compose_email') }}" class="btn-primary" style="margin-top: 14px;">
+                    Classify Your First Email
+                </a>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
+    </div>
+
+    <!-- Right: Small Readable Distribution Visualization -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <span>📊</span> Classification Ratio
+            </div>
+        </div>
+
+        <div class="panel-body" style="height: 260px; position: relative;">
+            <canvas id="distributionChart" 
+                    data-ham="{{ system_stats.ham_count }}" 
+                    data-spam="{{ system_stats.spam_count }}">
+            </canvas>
+        </div>
+
+        <div style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-around; font-size: 13px;">
+            <div>
+                <span style="color: #10b981; font-weight: 700;">● Legitimate (HAM):</span> <b id="chartHamText">{{ system_stats.ham_count }}</b>
+            </div>
+            <div>
+                <span style="color: #ef4444; font-weight: 700;">● Spam (SPAM):</span> <b id="chartSpamText">{{ system_stats.spam_count }}</b>
+            </div>
+        </div>
+
+        <div style="margin: 16px; padding: 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">
+                Quick Navigation
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <a href="{{ url_for('compose_email') }}" class="btn-secondary" style="font-size: 12px; justify-content: flex-start;">
+                    <span>✏️</span> Compose & Classify Email
+                </a>
+                <a href="{{ url_for('statistics_page') }}" class="btn-secondary" style="font-size: 12px; justify-content: flex-start;">
+                    <span>📊</span> View Statistical Models
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

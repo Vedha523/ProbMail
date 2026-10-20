@@ -1,55 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Spam Folder - Isolated Emails{% endblock %}
-{% block page_title %}Spam Folder (Isolated Threats){% endblock %}
+{% block title %}Spam Folder - Quarantined Threats - ProbMail{% endblock %}
+{% block page_title %}Spam Folder{% endblock %}
 
 {% block content %}
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>🚨</span> Automatically Isolated by Conditional Probability Engine
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 class="card-title">Quarantined Messages (SPAM)</h2>
+            <p class="card-subtitle">Suspicious and unsolicited communications automatically isolated by the Bayesian engine.</p>
         </div>
-        <div style="font-size: 13px; color: #ef4444; font-weight: 600;">
-            Total: <b>{{ emails|length }}</b> spam email(s) caught
+        <div class="mailbox-meta-right">
+            <span class="badge-status-spam font-semibold">{{ emails|length }} Threat(s) Isolated</span>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary btn-sm">
+                <span>Test Another Email</span>
+            </a>
         </div>
     </div>
 
-    <div class="panel-body" style="padding: 0;">
+    <div class="card-body p-0">
         {% if emails %}
-        <table class="email-table">
-            <tbody>
-                {% for email in emails %}
-                <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}">
-                    <td class="email-badge-col">
-                        <span class="badge-tag badge-spam">SPAM</span>
-                    </td>
-                    <td class="email-sender-col">
-                        <b>{{ email.sender_email }}</b>
-                    </td>
-                    <td class="email-subject-col">
-                        <span>{{ email.subject }}</span>
-                        <span class="email-snippet">- {{ email.body[:70] }}...</span>
-                    </td>
-                    <td class="email-prob-col">
-                        <div class="prob-text">
-                            <span style="color: #ef4444;">{{ email.spam_probability }}% Spam</span>
-                        </div>
-                        <div class="prob-meter-container">
-                            <div class="prob-meter-fill" style="width: {{ email.spam_probability }}%; background-color: #ef4444;"></div>
-                        </div>
-                    </td>
-                    <td class="email-date-col">
-                        {{ email.created_at[:10] }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 220px;">Sender</th>
+                        <th>Subject & Message Snippet</th>
+                        <th style="width: 140px;">Spam Probability</th>
+                        <th style="width: 110px;">Date</th>
+                        <th style="width: 90px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in emails %}
+                    <tr class="table-row-clickable {% if not email.is_read %}row-unread{% endif %}" onclick="window.location.href='{{ url_for('view_email', email_id=email.id) }}'">
+                        <td>
+                            <span class="badge-status-spam">SPAM</span>
+                        </td>
+                        <td class="text-sm font-semibold text-truncate" style="max-width: 220px;" title="{{ email.sender_email }}">
+                            {{ email.sender_email }}
+                        </td>
+                        <td>
+                            <div class="table-subject">{{ email.subject }}</div>
+                            <div class="table-snippet">{{ email.body[:75] }}...</div>
+                        </td>
+                        <td>
+                            <div class="prob-mini-box">
+                                <span class="text-spam font-semibold text-sm">{{ email.spam_probability }}%</span>
+                                <div class="progress-track" style="height: 5px; width: 60px;">
+                                    <div class="progress-bar bar-spam" style="width: {{ email.spam_probability }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-muted text-sm whitespace-nowrap">
+                            {{ email.created_at[:10] }}
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{{ url_for('view_email', email_id=email.id) }}" class="btn-table-action" onclick="event.stopPropagation();">
+                                Inspect &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer-bar">
+            <span class="text-muted text-sm">Showing <strong>{{ emails|length }}</strong> quarantined email(s)</span>
+        </div>
         {% else %}
         <div class="empty-state">
-            <div class="empty-state-icon">🛡️</div>
-            <div class="empty-state-title">No Spam Detected</div>
-            <p>Your spam quarantine folder is currently clean.</p>
+            <div class="empty-state-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
+            </div>
+            <h3 class="empty-state-title">No Spam Detected</h3>
+            <p class="empty-state-desc">
+                {% if search_query %}
+                No spam emails matched your search query "{{ search_query }}".
+                {% else %}
+                Your spam quarantine folder is currently empty.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary" style="margin-top: 14px;">
+                Test Spam Sample in Compose
+            </a>
         </div>
         {% endif %}
     </div>

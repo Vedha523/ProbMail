@@ -1,55 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Inbox - Legitimate Emails{% endblock %}
-{% block page_title %}Inbox (Legitimate Ham Emails){% endblock %}
+{% block title %}Inbox - Legitimate Emails - ProbMail{% endblock %}
+{% block page_title %}Inbox{% endblock %}
 
 {% block content %}
-<div class="panel">
-    <div class="panel-header">
-        <div class="panel-title">
-            <span>📥</span> Ham Mailbox &mdash; Verified Legitimate
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 class="card-title">Legitimate Messages (HAM)</h2>
+            <p class="card-subtitle">Verified emails delivered to your personal inbox.</p>
         </div>
-        <div style="font-size: 13px; color: #64748b;">
-            Total: <b>{{ emails|length }}</b> email(s)
+        <div class="mailbox-meta-right">
+            <span class="badge-status-ham font-semibold">{{ emails|length }} Message(s)</span>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary btn-sm">
+                <span>Compose New</span>
+            </a>
         </div>
     </div>
 
-    <div class="panel-body" style="padding: 0;">
+    <div class="card-body p-0">
         {% if emails %}
-        <table class="email-table">
-            <tbody>
-                {% for email in emails %}
-                <tr class="email-row {% if not email.is_read %}unread{% endif %}" data-id="{{ email.id }}">
-                    <td class="email-badge-col">
-                        <span class="badge-tag badge-ham">HAM</span>
-                    </td>
-                    <td class="email-sender-col">
-                        <b>{{ email.sender_email }}</b>
-                    </td>
-                    <td class="email-subject-col">
-                        <span>{{ email.subject }}</span>
-                        <span class="email-snippet">- {{ email.body[:70] }}...</span>
-                    </td>
-                    <td class="email-prob-col">
-                        <div class="prob-text">
-                            <span style="color: #10b981;">{{ email.ham_probability }}% Ham</span>
-                        </div>
-                        <div class="prob-meter-container">
-                            <div class="prob-meter-fill" style="width: {{ email.ham_probability }}%; background-color: #10b981;"></div>
-                        </div>
-                    </td>
-                    <td class="email-date-col">
-                        {{ email.created_at[:10] }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 220px;">Sender</th>
+                        <th>Subject & Message Snippet</th>
+                        <th style="width: 140px;">Ham Probability</th>
+                        <th style="width: 110px;">Date</th>
+                        <th style="width: 90px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in emails %}
+                    <tr class="table-row-clickable {% if not email.is_read %}row-unread{% endif %}" onclick="window.location.href='{{ url_for('view_email', email_id=email.id) }}'">
+                        <td>
+                            <span class="badge-status-ham">HAM</span>
+                        </td>
+                        <td class="text-sm font-semibold text-truncate" style="max-width: 220px;" title="{{ email.sender_email }}">
+                            {{ email.sender_email }}
+                        </td>
+                        <td>
+                            <div class="table-subject">{{ email.subject }}</div>
+                            <div class="table-snippet">{{ email.body[:75] }}...</div>
+                        </td>
+                        <td>
+                            <div class="prob-mini-box">
+                                <span class="text-ham font-semibold text-sm">{{ email.ham_probability }}%</span>
+                                <div class="progress-track" style="height: 5px; width: 60px;">
+                                    <div class="progress-bar bar-ham" style="width: {{ email.ham_probability }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-muted text-sm whitespace-nowrap">
+                            {{ email.created_at[:10] }}
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{{ url_for('view_email', email_id=email.id) }}" class="btn-table-action" onclick="event.stopPropagation();">
+                                Open &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer-bar">
+            <span class="text-muted text-sm">Showing <strong>{{ emails|length }}</strong> legitimate email(s) in inbox</span>
+        </div>
         {% else %}
         <div class="empty-state">
-            <div class="empty-state-icon">📭</div>
-            <div class="empty-state-title">Your Inbox is Empty</div>
-            <p>No legitimate emails found in this mailbox.</p>
+            <div class="empty-state-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+                </svg>
+            </div>
+            <h3 class="empty-state-title">Your Inbox is Empty</h3>
+            <p class="empty-state-desc">
+                {% if search_query %}
+                No emails matched your search query "{{ search_query }}".
+                {% else %}
+                No legitimate emails found. You can compose and classify a test email now.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('compose_email') }}" class="btn-primary" style="margin-top: 14px;">
+                Compose & Classify Email
+            </a>
         </div>
         {% endif %}
     </div>
